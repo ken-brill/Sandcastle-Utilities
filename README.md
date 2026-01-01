@@ -7,14 +7,9 @@ This repository provides Python scripts to streamline the management of Salesfor
 ## Tools Included
 
 -   `sf_validations.py`: Manages the activation state and synchronization of Salesforce Validation Rules.
-
-[![Salesforce Validation Rule Manager](img.youtube.com)]([www.youtube.com](https://youtu.be/S2K8MAhCABI))
-
-<video src="www.youtube.com](https://youtu.be/S2K8MAhCABI" controls title="Salesforce Validation Rule Manager">
-  Sorry, your browser doesn't support embedded videos.
-</video>
-
 -   `sf_triggers.py`: Manages the activation state of Salesforce Apex Triggers.
+
+📺 **Video Tutorial**: [Watch the demo on YouTube](https://www.youtube.com/watch?v=S2K8MAhCABI)
 
 ---
 
