@@ -87,6 +87,58 @@ def run_sf_command(command_args, cwd=None):
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {e}")
 
+def check_validation_rules(target_org, sobject_name):
+    """
+    Query validation rules for a specific object and display active/inactive counts.
+    """
+    try:
+        sf_cli = SalesforceCLI(target_org=target_org)
+        if not sf_cli.is_sandbox():
+            console.print(f"[bold red]✗ SAFETY CHECK FAILED[/bold red]")
+            console.print(f"[red]The target org '{target_org}' is a PRODUCTION environment.[/red]")
+            console.print(f"[yellow]Validation rule operations are only allowed on sandbox environments.[/yellow]")
+            raise RuntimeError(f"Cannot check validation rules on production org '{target_org}'")
+    except RuntimeError as e:
+        if "SAFETY CHECK FAILED" in str(e) or "production org" in str(e):
+            raise
+        console.print(f"[yellow]⚠ Warning: Could not verify sandbox status: {e}[/yellow]")
+        console.print(f"[yellow]Proceeding with caution...[/yellow]")
+    
+    console.print(f"\n[bold cyan]🔍 Checking Validation Rules[/bold cyan]")
+    console.print(f"[dim]Object: {sobject_name} | Target Org: {target_org}[/dim]")
+    
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task(f"[cyan]Querying {sobject_name} validation rules...", total=None)
+            
+            query = f"SELECT Id, Active FROM ValidationRule WHERE EntityDefinition.DeveloperName = '{sobject_name}'"
+            query_result = sf_cli._execute_sf_command(['data', 'query', '--query', query, '--use-tooling-api'])
+            
+            progress.update(task, completed=True)
+        
+        records = query_result.get('result', {}).get('records', [])
+        
+        active_count = sum(1 for record in records if record.get('Active') is True)
+        inactive_count = sum(1 for record in records if record.get('Active') is False)
+        
+        console.print(f"\n[bold cyan]Validation Rules Summary[/bold cyan]")
+        table = Table(show_header=False, box=box.SIMPLE)
+        table.add_row("Active", f"[green]{active_count}[/green]")
+        table.add_row("Inactive", f"[dim]{inactive_count}[/dim]")
+        table.add_row("Total", f"[cyan]{len(records)}[/cyan]")
+        console.print(table)
+        
+    except RuntimeError as e:
+        console.print(f"[bold red]✗ Error: {e}[/bold red]")
+        raise
+    except Exception as e:
+        console.print(f"[bold red]✗ Unexpected error: {e}[/bold red]")
+        raise
+
 def manage_validation_rules_in_temp_project(target_org, sobject_name, mode, source_org=None):
     """
     Disable, enable, or sync validation rules for a specific sObject using a temporary SFDX project.
@@ -406,9 +458,9 @@ if __name__ == "__main__":
                         help=source_org_help)
     parser.add_argument('-o', '--object', default=None, 
                         help='SObject name(s) - comma-separated for multiple. For enable mode, omit to enable all cached objects (default: Opportunity for disable/sync modes)')
-    parser.add_argument('-m', '--mode', choices=['disable', 'enable', 'sync'], 
+    parser.add_argument('-m', '--mode', choices=['disable', 'enable', 'sync', 'check'], 
                         default='disable', 
-                        help='Mode: disable, enable, or sync (default: disable)')
+                        help='Mode: disable, enable, sync, or check (default: disable)')
     args = parser.parse_args()
 
     target_org = args.target_org or saved_target_org
@@ -423,6 +475,16 @@ if __name__ == "__main__":
         exit(1)
 
     persist_config({"target_org": args.target_org, "source_org": args.source_org})
+
+    # Handle check mode
+    if args.mode == 'check':
+        check_object = args.object if args.object else 'Opportunity'
+        try:
+            check_validation_rules(target_org, check_object)
+            console.print()
+            exit(0)
+        except Exception:
+            exit(1)
 
     # Handle enable mode - discover objects from cache if not specified
     if args.mode == 'enable' and args.object is None:

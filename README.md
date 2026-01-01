@@ -18,6 +18,7 @@ This repository provides Python scripts to streamline the management of Salesfor
 -   ✅ **Disable Mode**: Temporarily deactivate validation rules in a sandbox for data migration or mass updates.
 -   ✅ **Enable Mode**: Re-activate validation rules from cached backups.
 -   ✅ **Sync Mode**: Copy validation rules from one sandbox to another, ensuring consistency.
+-   ✅ **Check Mode**: Query and display active/inactive validation rule counts without making changes.
 -   ✅ **Multi-Object Support**: Process validation rules for multiple SObjects in a single run.
 -   ✅ **Smart Caching**: Automatically manages cached validation rules for efficient re-enabling.
 
@@ -84,7 +85,7 @@ python3 sf_validations.py -m <mode> -t <target-org> [-o <objects>] [-s <source-o
 
 | Argument       | Short | Default     | Description                                                                  |
 | :------------- | :---- | :---------- | :--------------------------------------------------------------------------- |
-| `--mode`       | `-m`  | `disable`   | Operation mode: `disable`, `enable`, or `sync`.                              |
+| `--mode`       | `-m`  | `disable`   | Operation mode: `disable`, `enable`, `sync`, or `check`.                     |
 | `--target-org` | `-t`  | (Saved)     | Alias of the target Salesforce org. Required on first run.                   |
 | `--object`     | `-o`  | `Opportunity` | SObject name(s), comma-separated for multiple. Omit for `enable` mode to process all cached objects. |
 | `--source-org` | `-s`  | (Saved)     | Alias of the source org for `sync` mode. Required on first sync operation.   |
@@ -116,6 +117,17 @@ Copies validation rules from a source org to a target org for specified objects.
 ```bash
 # Sync Account and Contact validation rules from dev-sandbox to qa-sandbox
 python3 sf_validations.py -m sync -t qa-sandbox -s dev-sandbox -o Account,Contact
+```
+
+##### d. Check Mode
+Queries and displays the count of active and inactive validation rules without making any modifications.
+
+```bash
+# Check validation rule status for Opportunity in MYSANDBOX
+python3 sf_validations.py -m check -t MYSANDBOX -o Opportunity
+
+# Check validation rule status for Account (uses default or saved target org)
+python3 sf_validations.py -m check -o Account
 ```
 
 ---
