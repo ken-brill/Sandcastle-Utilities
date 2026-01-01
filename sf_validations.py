@@ -151,9 +151,11 @@ def manage_validation_rules_in_temp_project(target_org, sobject_name, mode, sour
                 progress.update(task, advance=20)
                 
                 original_cwd = os.getcwd()
-                os.chdir(Path.home())
+                sandcastle_dir = Path.home() / 'Sandcastle'
+                sandcastle_dir.mkdir(exist_ok=True)
+                os.chdir(sandcastle_dir)
                 try:
-                    run_sf_command(['project', 'generate', '--name', 'SandcastleMetadata'])
+                    run_sf_command(['project', 'generate', '--name', 'MetadataCache'])
                 finally:
                     os.chdir(original_cwd)
                 progress.update(task, advance=30)
@@ -200,9 +202,11 @@ def manage_validation_rules_in_temp_project(target_org, sobject_name, mode, sour
                 progress.update(task, advance=20)
                 
                 original_cwd = os.getcwd()
-                os.chdir(Path.home())
+                sandcastle_dir = Path.home() / 'Sandcastle'
+                sandcastle_dir.mkdir(exist_ok=True)
+                os.chdir(sandcastle_dir)
                 try:
-                    run_sf_command(['project', 'generate', '--name', 'SandcastleMetadata'])
+                    run_sf_command(['project', 'generate', '--name', 'MetadataCache'])
                 finally:
                     os.chdir(original_cwd)
                 progress.update(task, advance=30)
