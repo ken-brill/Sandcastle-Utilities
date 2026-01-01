@@ -51,7 +51,7 @@ This repository provides Python scripts to streamline the management of Salesfor
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/ken-brill/Sandcastle.git
+    git clone https://github.com/ken-brill/Sandcastle-Utilities.git
     cd Sandcastle/validation_test
     ```
 
@@ -264,7 +264,7 @@ validation_test/
 ## Contributing
 
 Found a bug or have a feature request? Please open an issue on GitHub:
-[https://github.com/ken-brill/Sandcastle/issues](https://github.com/ken-brill/Sandcastle/issues)
+[https://github.com/ken-brill/Sandcastle-Utilities/issues](https://github.com/ken-brill/Sandcastle-Utilities/issues)
 
 ---
 
@@ -289,7 +289,7 @@ The author is not responsible for data loss or unexpected behavior.
 ## Support
 
 For issues, questions, or contributions:
--   **GitHub:** [https://github.com/ken-brill/Sandcastle](https://github.com/ken-brill/Sandcastle)
+-   **GitHub:** [https://github.com/ken-brill/Sandcastle-Utilities](https://github.com/ken-brill/Sandcastle-Utilities)
 -   **Author:** Ken Brill
 
 ---

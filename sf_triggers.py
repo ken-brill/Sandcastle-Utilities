@@ -37,7 +37,7 @@ console = Console()
 
 VERSION = "1.0.0"
 AUTHOR = "Ken Brill"
-REPO = "https://github.com/ken-brill/Sandcastle"
+REPO = "https://github.com/ken-brill/Sandcastle-Utilities"
 CONFIG_FILE = Path.home() / "Sandcastle" / "config.json"
 
 def load_config() -> Dict[str, str]:
