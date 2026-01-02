@@ -18,53 +18,18 @@ from rich.text import Text
 sys.path.insert(0, str(Path(__file__).parent))
 from cli.salesforce_cli import SalesforceCLI
 
+# Import shared utilities
+from sandcastle_utils import (
+    load_config,
+    persist_config,
+    show_banner,
+    CONFIG_FILE,
+    VERSION,
+    AUTHOR,
+    REPO
+)
+
 console = Console()
-
-VERSION = "1.0.0"
-AUTHOR = "Ken Brill"
-REPO = "https://github.com/ken-brill/Sandcastle-Utilities"
-CONFIG_FILE = Path.home() / "Sandcastle" / "config.json"
-
-def load_config() -> dict:
-    """Load persisted defaults for org aliases."""
-    if CONFIG_FILE.exists():
-        try:
-            with open(CONFIG_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-def persist_config(updates: dict):
-    """Persist provided org aliases as the new defaults."""
-    config = load_config()
-    changed = False
-    for key, value in updates.items():
-        if value and config.get(key) != value:
-            # Don't save production orgs as defaults
-            if 'org' in key:
-                try:
-                    sf_cli = SalesforceCLI(value)
-                    if not sf_cli.is_sandbox():
-                        console.print(f"[dim]Skipping save of production org '{value}' to config[/dim]")
-                        continue
-                except Exception:
-                    pass
-            config[key] = value
-            changed = True
-    if changed:
-        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)\n        with open(CONFIG_FILE, "w") as f:
-            json.dump(config, f, indent=2)
-
-def show_banner():
-    """Display the application banner."""
-    title = Text()
-    title.append("Salesforce Validation Rule Manager\n", style="bold cyan")
-    title.append(f"Version {VERSION}\n", style="dim")
-    title.append(f"Author: {AUTHOR}\n", style="green")
-    title.append(f"Support: {REPO}", style="blue underline")
-    
-    console.print(Panel(title, box=box.DOUBLE, border_style="cyan", padding=(1, 2)))
 
 def run_sf_command(command_args, cwd=None):
     """Executes a Salesforce CLI command and returns its JSON output."""
@@ -447,7 +412,7 @@ def manage_validation_rules_in_temp_project(target_org, sobject_name, mode, sour
         raise
 
 if __name__ == "__main__":
-    show_banner()
+    show_banner("Salesforce Validation Rule Manager")
     
     config = load_config()
     saved_target_org = config.get("target_org")

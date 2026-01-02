@@ -43,12 +43,19 @@ except ImportError as e:
         "Make sure the cli/salesforce_cli.py file exists in your project."
     ) from e
 
+# Import shared utilities
+from sandcastle_utils import (
+    load_config,
+    persist_config,
+    show_banner,
+    CONFIG_FILE,
+    VERSION,
+    AUTHOR,
+    REPO
+)
+
 console = Console()
 
-VERSION = "1.0.0"
-AUTHOR = "Ken Brill"
-REPO = "https://github.com/ken-brill/Sandcastle-Utilities"
-CONFIG_FILE = Path.home() / "Sandcastle" / "config.json"
 STATE_FILE = Path.home() / "Sandcastle" / "custom_setting_state.json"
 
 # Custom Setting API Name
@@ -187,48 +194,6 @@ def send_desktop_notification(timeout_seconds: int = 10):
     
     except Exception as e:
         console.print(f"[dim]⚠️  Could not send notification: {e}[/dim]")
-
-def load_config() -> Dict[str, str]:
-    """Load persisted defaults for org aliases."""
-    if CONFIG_FILE.exists():
-        try:
-            with open(CONFIG_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-def persist_config(updates: Dict[str, str]):
-    """Persist provided org aliases as the new defaults."""
-    config = load_config()
-    changed = False
-    for key, value in updates.items():
-        if value and config.get(key) != value:
-            # Don't save production orgs as defaults
-            if 'org' in key:
-                try:
-                    sf_cli = SalesforceCLI(value)
-                    if not sf_cli.is_sandbox():
-                        console.print(f"[dim]Skipping save of production org '{value}' to config[/dim]")
-                        continue
-                except Exception:
-                    pass
-            config[key] = value
-            changed = True
-    if changed:
-        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(config, f, indent=2)
-
-def show_banner():
-    """Display the application banner."""
-    title = Text()
-    title.append("Custom Setting Manager\n", style="bold cyan")
-    title.append(f"Version {VERSION}\n", style="dim")
-    title.append(f"Author: {AUTHOR}\n", style="green")
-    title.append(f"Support: {REPO}", style="blue underline")
-    
-    console.print(Panel(title, box=box.DOUBLE, border_style="cyan", padding=(1, 2)))
 
 class CustomSettingManager:
     def __init__(self, target_org: str):
@@ -471,7 +436,7 @@ class CustomSettingManager:
         return data.get('checkboxes', {})
 
 def main():
-    show_banner()
+    show_banner("Custom Setting Manager")
     
     config = load_config()
     saved_target_org = config.get("target_org")
