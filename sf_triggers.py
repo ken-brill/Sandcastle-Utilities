@@ -38,6 +38,7 @@ from sandcastle_utils import (
     load_config,
     persist_config,
     show_banner,
+    verify_sandbox_org,
     CONFIG_FILE,
     VERSION,
     AUTHOR,
@@ -50,18 +51,7 @@ def check_triggers(target_org: str):
     """
     Query apex triggers and display active/inactive counts.
     """
-    try:
-        sf_cli = SalesforceCLI(target_org=target_org)
-        if not sf_cli.is_sandbox():
-            console.print(f"[bold red]✗ SAFETY CHECK FAILED[/bold red]")
-            console.print(f"[red]The target org '{target_org}' is a PRODUCTION environment.[/red]")
-            console.print(f"[yellow]Trigger operations are only allowed on sandbox environments.[/yellow]")
-            raise RuntimeError(f"Cannot check triggers on production org '{target_org}'")
-    except RuntimeError as e:
-        if "SAFETY CHECK FAILED" in str(e) or "production org" in str(e):
-            raise
-        console.print(f"[yellow]⚠ Warning: Could not verify sandbox status: {e}[/yellow]")
-        console.print(f"[yellow]Proceeding with caution...[/yellow]")
+    verify_sandbox_org(target_org, "Trigger operations")
     
     console.print(f"\n[bold cyan]🔍 Checking Apex Triggers[/bold cyan]")
     console.print(f"[dim]Target Org: {target_org}[/dim]")

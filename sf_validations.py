@@ -23,6 +23,7 @@ from sandcastle_utils import (
     load_config,
     persist_config,
     show_banner,
+    verify_sandbox_org,
     CONFIG_FILE,
     VERSION,
     AUTHOR,
@@ -64,18 +65,7 @@ def check_validation_rules(target_org, sobject_name):
     """
     Query validation rules for a specific object and display active/inactive counts.
     """
-    try:
-        sf_cli = SalesforceCLI(target_org=target_org)
-        if not sf_cli.is_sandbox():
-            console.print(f"[bold red]✗ SAFETY CHECK FAILED[/bold red]")
-            console.print(f"[red]The target org '{target_org}' is a PRODUCTION environment.[/red]")
-            console.print(f"[yellow]Validation rule operations are only allowed on sandbox environments.[/yellow]")
-            raise RuntimeError(f"Cannot check validation rules on production org '{target_org}'")
-    except RuntimeError as e:
-        if "SAFETY CHECK FAILED" in str(e) or "production org" in str(e):
-            raise
-        console.print(f"[yellow]⚠ Warning: Could not verify sandbox status: {e}[/yellow]")
-        console.print(f"[yellow]Proceeding with caution...[/yellow]")
+    verify_sandbox_org(target_org, "Validation rule operations")
     
     console.print(f"\n[bold cyan]🔍 Checking Validation Rules[/bold cyan]")
     console.print(f"[dim]Object: {sobject_name} | Target Org: {target_org}[/dim]")
@@ -117,20 +107,7 @@ def manage_validation_rules_in_temp_project(target_org, sobject_name, mode, sour
     Disable, enable, or sync validation rules for a specific sObject using a temporary SFDX project.
     """
     # Verify target org is a sandbox before proceeding
-    try:
-        sf_cli = SalesforceCLI(target_org=target_org)
-        if not sf_cli.is_sandbox():
-            console.print(f"[bold red]✗ SAFETY CHECK FAILED[/bold red]")
-            console.print(f"[red]The target org '{target_org}' is a PRODUCTION environment.[/red]")
-            console.print(f"[yellow]Validation rule operations are only allowed on sandbox environments.[/yellow]")
-            raise RuntimeError(f"Cannot perform {mode} operation on production org '{target_org}'")
-        console.print(f"[dim]✓ Verified: '{target_org}' is a sandbox[/dim]")
-    except RuntimeError as e:
-        if "SAFETY CHECK FAILED" in str(e) or "production org" in str(e):
-            raise
-        # If we can't verify (e.g., connection issue), warn but don't block
-        console.print(f"[yellow]⚠ Warning: Could not verify sandbox status: {e}[/yellow]")
-        console.print(f"[yellow]Proceeding with caution...[/yellow]")
+    verify_sandbox_org(target_org, "Validation rule operations")
     
     temp_sfdx_project_dir = Path.home() / 'Sandcastle' / 'MetadataCache'
     

@@ -123,3 +123,37 @@ def update_config_value(key: str, value, skip_production_orgs: bool = True):
         skip_production_orgs: If True, production orgs won't be saved (default: True)
     """
     persist_config({key: value}, skip_production_orgs=skip_production_orgs)
+
+
+def verify_sandbox_org(target_org: str, operation_type: str = "operations"):
+    """
+    Verify that the target org is a sandbox environment.
+    
+    This function checks if the target org is a production environment and prevents
+    operations from proceeding if it is. If the sandbox status cannot be verified
+    (e.g., connection issues), a warning is displayed but execution continues.
+    
+    Args:
+        target_org: The Salesforce org alias to verify
+        operation_type: Description of the operation type (e.g., "Trigger", "Validation rule")
+    
+    Raises:
+        RuntimeError: If the org is verified to be a production environment
+    """
+    if SalesforceCLI is None:
+        console.print(f"[yellow]⚠ Warning: Cannot verify sandbox status (SalesforceCLI not available)[/yellow]")
+        console.print(f"[yellow]Proceeding with caution...[/yellow]")
+        return
+    
+    try:
+        sf_cli = SalesforceCLI(target_org=target_org)
+        if not sf_cli.is_sandbox():
+            console.print(f"[bold red]✗ SAFETY CHECK FAILED[/bold red]")
+            console.print(f"[red]The target org '{target_org}' is a PRODUCTION environment.[/red]")
+            console.print(f"[yellow]{operation_type} are only allowed on sandbox environments.[/yellow]")
+            raise RuntimeError(f"Cannot perform {operation_type.lower()} on production org '{target_org}'")
+    except RuntimeError as e:
+        if "SAFETY CHECK FAILED" in str(e) or "production org" in str(e):
+            raise
+        console.print(f"[yellow]⚠ Warning: Could not verify sandbox status: {e}[/yellow]")
+        console.print(f"[yellow]Proceeding with caution...[/yellow]")
