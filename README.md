@@ -39,7 +39,7 @@ This repository provides Python scripts to streamline the management of Salesfor
 
 -   ✅ **Check All Mode**: Enable all checkbox fields with interactive reminders.
 -   ✅ **Uncheck All Mode**: Disable all checkbox fields and save original state.
--   ✅ **Restore Mode**: Restore checkboxes to their previously saved state.
+
 -   ✅ **Status Mode**: Query and display checkbox status without making changes.
 -   ✅ **Cross-Platform Alerts**: Voice alerts + dialog boxes on macOS and Windows.
 -   ✅ **Interactive Reminders**: 30-second beeps with 60-second voice/dialog notifications.
@@ -240,20 +240,19 @@ This script demonstrates how to automate the management of Custom Setting checkb
 ```bash
 ./sf_custom_settings.py --target-org SANDBOX_ALIAS --check-all
 ./sf_custom_settings.py --target-org SANDBOX_ALIAS --uncheck-all
-./sf_custom_settings.py --target-org SANDBOX_ALIAS --restore
 ./sf_custom_settings.py --target-org SANDBOX_ALIAS --status
 ```
 
 #### Arguments
 
-| Argument         | Description                                                        |
-| :--------------- | :----------------------------------------------------------------- |
-| `--target-org`   | Alias of the target Salesforce org. Saved on first run.           |
-| `--check-all`    | Enable all checkbox fields and enter annoying reminder loop.      |
-| `--uncheck-all`  | Disable all checkbox fields and save original state.              |
-| `--restore`      | Restore checkboxes to their previously saved state.               |
-| `--status`       | Display current checkbox status without making changes.           |
-| `--test-dialog`  | Test desktop notifications (debug only).                          |
+| Argument           | Description                                                        |
+| :----------------- | :----------------------------------------------------------------- |
+| `--target-org`     | Alias of the target Salesforce org. Saved on first run.           |
+| `--check-all`      | Enable all checkbox fields and enter annoying reminder loop.      |
+| `--uncheck-all`    | Disable all checkbox fields and save original state.              |
+| `--status`         | Display current checkbox status without making changes.           |
+| `--dialog-timeout` | Dialog box auto-dismiss timeout in seconds (default: 10, saved).  |
+| `--test-dialog`    | Test desktop notifications (debug only).                          |
 
 #### Modes
 
@@ -308,29 +307,26 @@ Disable all checkbox fields and save the original state:
 ```
 
 This saves the original state to `~/Sandcastle/custom_setting_state.json` so you can restore it later.
-
-##### Restore Mode
-Restore all checkboxes to their previously saved state:
-
-```bash
-./sf_custom_settings.py --restore
-```
-
-This reads from `~/Sandcastle/custom_setting_state.json` and restores each checkbox to its original value.
-
+This saves the original state to `~/Sandcastle/custom_setting_state.json` so you can restore it manually if needed.
 #### Example Workflow
 
 ```bash
 # 1. Check current status
 ./sf_custom_settings.py --status
 
-# 2. Enable all checkboxes (with annoying reminders)
+# 2. Configure dialog timeout (saved for future runs)
+./sf_custom_settings.py --dialog-timeout 15 --check-all
+
+# 3. Enable all checkboxes with reminder loop
 ./sf_custom_settings.py --check-all
 
-# ... after testing ...
+# ... after testing, manually update checkboxes ...
 
-# 3. Restore to original state
-./sf_custom_settings.py --restore
+# 4. Verify status after manual changes
+./sf_custom_settings.py --status
+
+# 5. Test your notification settings
+./sf_custom_settings.py --test-dialog
 ```
 
 #### Cross-Platform Notifications
@@ -372,9 +368,9 @@ This script is designed as an example. To use it with your own custom settings:
 
 - **State Storage**: `~/Sandcastle/custom_setting_state.json`
   - Saved when you run `--uncheck-all`
-  - Contains the original state of all checkboxes
-  - Used by `--restore` to restore to original values
+  - Contains the original state of all checkboxes before they were unchecked
   - Organization-specific (includes target org name)
+  - Can be manually inspected to see previous values if needed
 
 #### Production Org Support
 
@@ -397,6 +393,49 @@ When targeting a production org:
 All three scripts include robust safety mechanisms:
 -   **Production Org Protection**: Operations are strictly blocked on production Salesforce environments to prevent unintended consequences.
 -   **Sandbox Requirement**: Both tools verify that the target org is a sandbox before proceeding with any metadata modifications.
+
+---
+
+## Configuration File
+
+All three scripts use a shared configuration file to persist your preferences and defaults across runs.
+
+### Configuration File Location
+**`~/.Sandcastle/config.json`**
+
+This file is created automatically on the first run of any script. Location: Your home directory (`~`) under the `.Sandcastle` folder.
+
+### Stored Configuration
+
+The config file stores the following information:
+
+| Setting         | Script(s)              | Purpose                                                  |
+| :-------------- | :--------------------- | :------------------------------------------------------- |
+| `target_org`    | All 3 scripts          | Default Salesforce org alias for target operations      |
+| `source_org`    | sf_validations.py      | Default source org for sync operations                  |
+| `dialog_timeout`| sf_custom_settings.py  | Dialog box auto-dismiss timeout in seconds (default: 10)|
+
+### Important Notes
+
+- **Production Orgs**: Production org aliases are **never saved** to the config file, even if you successfully run a script against production. This is intentional—only sandbox orgs become saved defaults.
+- **Sandbox Defaults**: Only sandbox org aliases are persisted to `config.json` to prevent accidental use of production as a default.
+- **Manual Editing**: You can manually edit `config.json` if needed. Format:
+  ```json
+  {
+    "target_org": "my-sandbox",
+    "source_org": "source-sandbox",
+    "dialog_timeout": "15"
+  }
+  ```
+
+### Clearing Configuration
+
+To reset all saved defaults:
+```bash
+rm ~/.Sandcastle/config.json
+```
+
+You'll need to provide `--target-org` (and `--source-org` for validations sync) on the next run.
 
 ---
 

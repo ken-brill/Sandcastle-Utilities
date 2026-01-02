@@ -102,14 +102,14 @@ def show_warning_loop():
     
     console.print(Panel(warning_text, border_style="red", box=box.DOUBLE, padding=(1, 2)))
 
-def show_dialog_box():
+def show_dialog_box(timeout_seconds: int = 10):
     """Show a cross-platform dialog box using native platform APIs."""
     def _show():
         try:
             if SYSTEM == 'darwin':  # macOS
                 # Use osascript for native macOS dialog
-                dialog_script = '''
-                display dialog "⚠️  CHECKBOXES ARE CHECKED!\\n\\nCustom Setting checkboxes are still enabled.\\nUncheck them immediately!\\n\\nRun: ./sf_custom_settings.py --uncheck-all" with title "ESB Events Controller Warning" buttons {"I'll uncheck them now"} default button 1 with icon caution giving up after 10
+                dialog_script = f'''
+                display dialog "⚠️  CHECKBOXES ARE CHECKED!\\n\\nCustom Setting checkboxes are still enabled.\\nUncheck them immediately!\\n\\nRun: ./sf_custom_settings.py --uncheck-all" with title "ESB Events Controller Warning" buttons {{"I'll uncheck them now"}} default button 1 with icon caution giving up after {timeout_seconds}
                 '''
                 subprocess.run(
                     ['osascript', '-e', dialog_script],
@@ -174,14 +174,14 @@ def send_voice_alert():
         # Voice not available, skip silently
         pass
 
-def send_desktop_notification():
+def send_desktop_notification(timeout_seconds: int = 10):
     """Send a desktop notification reminder with voice alert and dialog box."""
     try:
         # Voice alert (platform-specific)
         send_voice_alert()
         
         # Dialog box (native platform APIs - no dependencies!)
-        show_dialog_box()
+        show_dialog_box(timeout_seconds)
         
         console.print("[dim]🔊 Sent voice alert + dialog box[/dim]")
     
@@ -469,49 +469,6 @@ class CustomSettingManager:
             )
         
         return data.get('checkboxes', {})
-    
-    def restore_state(self, checkbox_fields: List[str]):
-        """Restore checkboxes to their original state."""
-        console.print(f"\n[cyan]Restoring original state...[/cyan]")
-        
-        # Load saved state
-        saved_state = self.load_state()
-        
-        # Get record ID
-        record = self.get_custom_setting_record()
-        record_id = record['Id']
-        
-        # Build update data from saved state
-        update_data = {field: saved_state.get(field, False) for field in checkbox_fields}
-        
-        try:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console
-            ) as progress:
-                task = progress.add_task("Restoring checkboxes", total=None)
-                
-                # Build the update command with key=value pairs
-                values_str = " ".join([f"{k}={str(v).lower()}" for k, v in update_data.items()])
-                
-                self.sf_cli._execute_sf_command([
-                    'data', 'update', 'record',
-                    '--sobject', CUSTOM_SETTING_NAME,
-                    '--record-id', record_id,
-                    '--values', values_str
-                ])
-                
-                progress.update(task, completed=True)
-            
-            console.print(f"[green]✓ Successfully restored {len(checkbox_fields)} checkbox field(s) to original state[/green]")
-            
-            # Clean up state file
-            STATE_FILE.unlink()
-            console.print(f"[dim]Removed state file[/dim]")
-            
-        except Exception as e:
-            raise RuntimeError(f"Error restoring state: {e}") from e
 
 def main():
     show_banner()
@@ -539,11 +496,6 @@ def main():
         help="Uncheck all checkbox fields and save original state"
     )
     parser.add_argument(
-        "--restore",
-        action="store_true",
-        help="Restore checkboxes to their original state"
-    )
-    parser.add_argument(
         "--status",
         action="store_true",
         help="Display current checkbox status without making changes"
@@ -553,16 +505,18 @@ def main():
         action="store_true",
         help="Test desktop notification (debug only)"
     )
-    
-    args = parser.parse_args()
-    
-    # Handle test-dialog
-    if args.test_dialog:
-        console.print("\n[cyan]Testing desktop notification...[/cyan]\n")
-        send_desktop_notification()
+    parser.add_argument(
+        "--dialog-timeout",
+        type=int,
+        default=None,
+        help="Dialog box timeout in seconds (default: 10, saved to config)"
+    )
+    # Load dialog timeout from config
+        dialog_timeout = config.get("dialog_timeout", 10)
+        send_desktop_notification(dialog_timeout)
         console.print("\n[green]Test complete! (waiting for dialog to display...)[/green]\n")
-        # Wait for dialog to finish (10 second auto-dismiss + buffer)
-        time.sleep(12)
+        # Wait for dialog to finish + buffer
+        time.sleep(dialog_timeout + 2)
         sys.exit(0)
     target_org = args.target_org or saved_target_org
 
@@ -573,10 +527,22 @@ def main():
     if args.target_org:
         persist_config({"target_org": args.target_org})
     
+    # Handle dialog timeout configuration
+    dialog_timeout = args.dialog_timeout if args.dialog_timeout else config.get("dialog_timeout", 10)
+    if args.dialog_timeout:
+        persist_config({"dialog_timeout": str(args.dialog_timeout)})
+        console.print(f"[dim]Dialog timeout set to {args.dialog_timeout} seconds[/dim]"
+    if not target_org:
+        console.print("[red]✗ Provide --target-org at least once to establish a default[/red]")
+        sys.exit(1)
+
+    if args.target_org:
+        persist_config({"target_org": args.target_org})
+    
     # Validate mode selection (exclude test-dialog from count)
-    mode_count = sum([args.check_all, args.uncheck_all, args.restore, args.status])
+    mode_count = sum([args.check_all, args.uncheck_all, args.status])
     if mode_count == 0:
-        console.print("[red]✗ Please specify a mode: --check-all, --uncheck-all, --restore, or --status[/red]")
+        console.print("[red]✗ Please specify a mode: --check-all, --uncheck-all, or --status[/red]")
         sys.exit(1)
     elif mode_count > 1:
         console.print("[red]✗ Please specify only one mode at a time[/red]")
@@ -613,7 +579,7 @@ def main():
             manager.display_status(new_status)
             
             # Enter the annoying reminder loop
-            console.print("\n[bold yellow]⚠️  Entering reminder loop - Press any key to exit loop[/bold yellow]\n")
+            console.print("\n[bold yellow]⚠️  dialog_timeoutEntering reminder loop - Press any key to exit loop[/bold yellow]\n")
             time.sleep(2)
             
             loop_count = 0
@@ -667,14 +633,6 @@ def main():
             # Show new status
             new_status = manager.check_status(checkbox_fields)
             manager.display_status(new_status)
-            
-        elif args.restore:
-            # Restore original state
-            manager.restore_state(checkbox_fields)
-            
-            # Show restored status
-            restored_status = manager.check_status(checkbox_fields)
-            manager.display_status(restored_status)
         
         console.print()
         
