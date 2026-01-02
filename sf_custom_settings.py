@@ -511,13 +511,20 @@ def main():
         default=None,
         help="Dialog box timeout in seconds (default: 10, saved to config)"
     )
-    # Load dialog timeout from config
+    
+    args = parser.parse_args()
+    
+    # Handle test-dialog
+    if args.test_dialog:
+        console.print("\n[cyan]Testing desktop notification...[/cyan]\n")
+        # Load dialog timeout from config
         dialog_timeout = config.get("dialog_timeout", 10)
         send_desktop_notification(dialog_timeout)
         console.print("\n[green]Test complete! (waiting for dialog to display...)[/green]\n")
         # Wait for dialog to finish + buffer
         time.sleep(dialog_timeout + 2)
         sys.exit(0)
+    
     target_org = args.target_org or saved_target_org
 
     if not target_org:
@@ -531,9 +538,15 @@ def main():
     dialog_timeout = args.dialog_timeout if args.dialog_timeout else config.get("dialog_timeout", 10)
     if args.dialog_timeout:
         persist_config({"dialog_timeout": str(args.dialog_timeout)})
-        console.print(f"[dim]Dialog timeout set to {args.dialog_timeout} seconds[/dim]"
-    if not target_org:
-        console.print("[red]✗ Provide --target-org at least once to establish a default[/red]")
+        console.print(f"[dim]Dialog timeout set to {args.dialog_timeout} seconds[/dim]")
+    
+    # Validate mode selection (exclude test-dialog from count)
+    mode_count = sum([args.check_all, args.uncheck_all, args.status])
+    if mode_count == 0:
+        console.print("[red]✗ Please specify a mode: --check-all, --uncheck-all, or --status[/red]")
+        sys.exit(1)
+    elif mode_count > 1:
+        console.print("[red]✗ Please specify only one mode at a time[/red]")
         sys.exit(1)
 
     if args.target_org:
