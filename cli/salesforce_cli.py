@@ -70,58 +70,63 @@ class SalesforceCLI:
         result = self._execute_sf_command(command_args)
         return result is not None
 
-    def _execute_sf_command(self, command_args: list) -> Optional[Dict[str, Any]]:
-        """
-        Executes a Salesforce CLI command and returns the JSON output.
-        Includes --target-org if self.target_org is set.
-        This version now extracts detailed error messages from JSON output.
-        """
-        command_with_args = ['sf'] + command_args
-        if self.target_org:
-            command_with_args.extend(['--target-org', self.target_org])
-        
-        full_command = command_with_args + ['--json']
-        
-        try:
-            result = subprocess.run(
-                full_command,
-                capture_output=True,
-                text=True,
-                check=False, # Do not raise CalledProcessError automatically
-                encoding='utf-8'
-            )
-            
-            json_output = {}
-            if result.stdout:
-                try:
-                    json_output = json.loads(result.stdout)
-                except json.JSONDecodeError:
-                    # If stdout is not JSON, it might be a general SF CLI error or warning
-                    print(f"WARNING: SF CLI output was not JSON for command: {' '.join(full_command)}")
-                    print(f"STDOUT: {result.stdout}")
-
-            # Check for error based on return code and JSON status
-            if result.returncode != 0 or json_output.get('status') != 0:
-                error_message = json_output.get('message', 'Unknown error from Salesforce CLI.')
-                # Also include stderr if present, for non-JSON errors
-                if result.stderr:
-                    error_message += f"\nSTDERR: {result.stderr}"
-                
-                # Create a custom exception with the full error data
-                error = RuntimeError(f"SF CLI command failed: {error_message}")
-                error.sf_error_data = json_output  # Attach the full JSON response
-                raise error
-
-            return json_output
-        except FileNotFoundError:
-            raise RuntimeError("Salesforce CLI ('sf') command not found. Please ensure it is installed and in your PATH.")
-        except Exception as e:
-            # Preserve sf_error_data if it exists on the original exception
-            new_error = RuntimeError(f"An unexpected error occurred while running an SF CLI command: {e}")
-            if hasattr(e, 'sf_error_data'):
-                new_error.sf_error_data = e.sf_error_data
-            raise new_error from e
+def _execute_sf_command(self, command_args: list) -> Optional[Dict[str, Any]]:
+    """
+    Executes a Salesforce CLI command and returns the JSON output.
+    Includes --target-org if self.target_org is set.
+    This version now extracts detailed error messages from JSON output.
+    Fixed for Windows compatibility.
+    """
+    import sys
     
+    command_with_args = ['sf'] + command_args
+    if self.target_org:
+        command_with_args.extend(['--target-org', self.target_org])
+    
+    full_command = command_with_args + ['--json']
+    
+    try:
+        # Windows fix: use shell=True to allow proper command resolution
+        # On Windows, 'sf' needs the shell to be found in PATH
+        result = subprocess.run(
+            full_command,
+            capture_output=True,
+            text=True,
+            check=False,
+            encoding='utf-8',
+            shell=sys.platform == 'win32'  # Only use shell on Windows
+        )
+        
+        json_output = {}
+        if result.stdout:
+            try:
+                json_output = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                # If stdout is not JSON, it might be a general SF CLI error or warning
+                print(f"WARNING: SF CLI output was not JSON for command: {' '.join(full_command)}")
+                print(f"STDOUT: {result.stdout}")
+
+        # Check for error based on return code and JSON status
+        if result.returncode != 0 or json_output.get('status') != 0:
+            error_message = json_output.get('message', 'Unknown error from Salesforce CLI.')
+            # Also include stderr if present, for non-JSON errors
+            if result.stderr:
+                error_message += f"\nSTDERR: {result.stderr}"
+            
+            # Create a custom exception with the full error data
+            error = RuntimeError(f"SF CLI command failed: {error_message}")
+            error.sf_error_data = json_output
+            raise error
+
+        return json_output
+    except FileNotFoundError:
+        raise RuntimeError("Salesforce CLI ('sf') command not found. Please ensure it is installed and in your PATH.")
+    except Exception as e:
+        # Preserve sf_error_data if it exists on the original exception
+        new_error = RuntimeError(f"An unexpected error occurred while running an SF CLI command: {e}")
+        if hasattr(e, 'sf_error_data'):
+            new_error.sf_error_data = e.sf_error_data
+        raise new_error from e    
     def get_org_info(self) -> Optional[Dict[str, Any]]:
         """
         Retrieves and caches information about the connected Salesforce org.
