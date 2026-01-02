@@ -7,9 +7,13 @@ This repository provides Python scripts to streamline the management of Salesfor
 ## Tools Included
 
 -   `sf_validations.py`: Manages the activation state and synchronization of Salesforce Validation Rules.
+📺 **Video Tutorial**: [Watch the demo on YouTube](https://www.youtube.com/watch?v=S2K8MAhCABI)
+
 -   `sf_triggers.py`: Manages the activation state of Salesforce Apex Triggers.
 
-📺 **Video Tutorial**: [Watch the demo on YouTube](https://www.youtube.com/watch?v=S2K8MAhCABI)
+-   `sf_custom_settings.py`: Automates the management of Custom Setting checkbox fields with interactive reminders and cross-platform notifications. Example implementation for feature toggle automation.
+
+
 
 ---
 
@@ -29,6 +33,18 @@ This repository provides Python scripts to streamline the management of Salesfor
 -   ✅ **Disable Mode**: Temporarily deactivate all Apex Triggers in a sandbox.
 -   ✅ **Enable Mode**: Re-activate previously disabled Apex Triggers from a stored state.
 -   ✅ **Reset Option**: Clean up all temporary files and stored states for a fresh start.
+-   ✅ **Managed Package Filtering**: Distinguishes between deployable and managed package triggers.
+
+### For Custom Settings (`sf_custom_settings.py`)
+
+-   ✅ **Check All Mode**: Enable all checkbox fields with interactive reminders.
+-   ✅ **Uncheck All Mode**: Disable all checkbox fields and save original state.
+-   ✅ **Restore Mode**: Restore checkboxes to their previously saved state.
+-   ✅ **Status Mode**: Query and display checkbox status without making changes.
+-   ✅ **Cross-Platform Alerts**: Voice alerts + dialog boxes on macOS and Windows.
+-   ✅ **Interactive Reminders**: 30-second beeps with 60-second voice/dialog notifications.
+-   ✅ **Production Support**: Works on both sandbox and production orgs (with confirmation).
+-   ✅ **State Persistence**: Automatic backup and restoration of checkbox states.
 
 ### Common Features
 
@@ -180,11 +196,205 @@ Use this to clear any existing trigger state files and temporary metadata, forci
 python3 sf_triggers.py --target-org MYSANDBOX --reset --disable
 ```
 
+##### d. Check Mode
+Queries the target org to display the current count of active and inactive Apex triggers. This mode performs no modifications and is useful for auditing trigger status before making changes.
+
+```bash
+# Check trigger status in MYSANDBOX
+python3 sf_triggers.py --target-org MYSANDBOX --check
+```
+
+**Output Example:**
+```
+Apex Trigger Status for MYSANDBOX
+┏━━━━━━━━━━━━━┳━━━━━━┓
+┃ Status      ┃ Count ┃
+┡━━━━━━━━━━━━━╇━━━━━━┩
+│ Active      │  12   │
+│ Inactive    │   3   │
+│ Total       │  15   │
+└─────────────┴─────┘
+```
+
+---
+
+## 3. Salesforce Custom Setting Manager (`sf_custom_settings.py`)
+
+This script demonstrates how to automate the management of Custom Setting checkbox fields in Salesforce. It provides a complete example of managing mutable hierarchical custom settings, with interactive reminders and multi-platform notifications.
+
+**Use Case**: This example manages the `ESB_Events_Controller__c` custom setting, which controls feature toggles for event processing. The script can be adapted to manage any custom setting with boolean fields in your Salesforce instance.
+
+#### Features
+
+- ✅ **Check All Mode**: Enable all checkbox fields and enter an interactive reminder loop
+- ✅ **Uncheck All Mode**: Disable all checkbox fields and save the original state
+- ✅ **Restore Mode**: Restore all checkbox fields to their previously saved state
+- ✅ **Status Mode**: Query and display current checkbox status without making changes
+- ✅ **Cross-Platform Alerts**: Multi-modal notifications with voice alerts + dialog boxes on macOS and Windows
+- ✅ **Interactive Reminder Loop**: Every 30 seconds with 60-second voice/dialog alerts
+- ✅ **Production Org Support**: Works with both sandbox and production (with user confirmation)
+- ✅ **State Persistence**: Automatically saves original state for restoration
+
+#### Basic Syntax
+
+```bash
+./sf_custom_settings.py --target-org SANDBOX_ALIAS --check-all
+./sf_custom_settings.py --target-org SANDBOX_ALIAS --uncheck-all
+./sf_custom_settings.py --target-org SANDBOX_ALIAS --restore
+./sf_custom_settings.py --target-org SANDBOX_ALIAS --status
+```
+
+#### Arguments
+
+| Argument         | Description                                                        |
+| :--------------- | :----------------------------------------------------------------- |
+| `--target-org`   | Alias of the target Salesforce org. Saved on first run.           |
+| `--check-all`    | Enable all checkbox fields and enter annoying reminder loop.      |
+| `--uncheck-all`  | Disable all checkbox fields and save original state.              |
+| `--restore`      | Restore checkboxes to their previously saved state.               |
+| `--status`       | Display current checkbox status without making changes.           |
+| `--test-dialog`  | Test desktop notifications (debug only).                          |
+
+#### Modes
+
+##### Status Mode
+Query current checkbox status and display in a formatted table:
+
+```bash
+./sf_custom_settings.py --status
+```
+
+Output:
+```
+Custom Setting Status: ESB_Events_Controller__c
+
+┌──────────────────────────────┬────────────────┐
+│ Field Name                   │ Status         │
+├──────────────────────────────┼────────────────┤
+│ Event_Processing__c          │ ✓ Checked      │
+│ Error_Logging__c             │ ☐ Unchecked    │
+│ Analytics_Enabled__c         │ ✓ Checked      │
+└──────────────────────────────┴────────────────┘
+
+Checked      3
+Unchecked    1
+Total        4
+```
+
+##### Check All Mode
+Enable all checkbox fields and enter the reminder loop:
+
+```bash
+./sf_custom_settings.py --check-all
+```
+
+What happens:
+1. Displays current checkbox status
+2. Enters interactive reminder loop
+3. Every 30 seconds: Terminal bell + red warning panel
+4. Every 60 seconds: Voice alert + dialog box popup
+5. Press any key to exit loop and uncheck boxes
+
+The annoying alerts include:
+- **macOS**: Native dialog boxes + Samantha voice alert via `say` command
+- **Windows**: Native MessageBox + PowerShell text-to-speech
+- **All Platforms**: Terminal beeps + Rich red warning panels
+
+##### Uncheck All Mode
+Disable all checkbox fields and save the original state:
+
+```bash
+./sf_custom_settings.py --uncheck-all
+```
+
+This saves the original state to `~/Sandcastle/custom_setting_state.json` so you can restore it later.
+
+##### Restore Mode
+Restore all checkboxes to their previously saved state:
+
+```bash
+./sf_custom_settings.py --restore
+```
+
+This reads from `~/Sandcastle/custom_setting_state.json` and restores each checkbox to its original value.
+
+#### Example Workflow
+
+```bash
+# 1. Check current status
+./sf_custom_settings.py --status
+
+# 2. Enable all checkboxes (with annoying reminders)
+./sf_custom_settings.py --check-all
+
+# ... after testing ...
+
+# 3. Restore to original state
+./sf_custom_settings.py --restore
+```
+
+#### Cross-Platform Notifications
+
+The script uses native platform APIs for maximum compatibility:
+
+**macOS**:
+- Dialog boxes via `osascript` AppleScript
+- Voice alerts via `say` command (Samantha voice)
+- System sounds via `afplay`
+
+**Windows**:
+- Native MessageBox via `ctypes.windll.user32.MessageBoxW`
+- Voice alerts via PowerShell's `System.Speech.Synthesis.SpeechSynthesizer`
+- Terminal beeps via standard output
+
+**All Platforms**:
+- Terminal beeps (ASCII bell character)
+- Rich library red warning panels
+- Interactive keyboard prompts
+
+#### How to Adapt for Your Custom Settings
+
+This script is designed as an example. To use it with your own custom settings:
+
+1. **Update the Custom Setting API Name**:
+   ```python
+   CUSTOM_SETTING_NAME = "Your_Custom_Setting__c"
+   ```
+
+2. **Run the script**:
+   ```bash
+   ./sf_custom_settings.py --target-org YOUR_ORG --status
+   ```
+
+3. The script automatically discovers all boolean fields and manages them.
+
+#### State Files
+
+- **State Storage**: `~/Sandcastle/custom_setting_state.json`
+  - Saved when you run `--uncheck-all`
+  - Contains the original state of all checkboxes
+  - Used by `--restore` to restore to original values
+  - Organization-specific (includes target org name)
+
+#### Production Org Support
+
+The script now allows operations on production orgs:
+
+```bash
+./sf_custom_settings.py --target-org PRODUCTION --check-all
+```
+
+When targeting a production org:
+- ⚠️ **Bold red warning** is displayed
+- You must confirm with `y` to proceed (or `n` to cancel)
+- **Production orgs will NOT be saved as default** in config.json
+- This ensures you don't accidentally use production as your default
+
 ---
 
 ## Safety Features
 
-Both scripts include robust safety mechanisms:
+All three scripts include robust safety mechanisms:
 -   **Production Org Protection**: Operations are strictly blocked on production Salesforce environments to prevent unintended consequences.
 -   **Sandbox Requirement**: Both tools verify that the target org is a sandbox before proceeding with any metadata modifications.
 
@@ -257,6 +467,9 @@ Both scripts include robust safety mechanisms:
 validation_test/
 ├── sf_triggers.py             # Apex Trigger management script
 ├── sf_validations.py          # Validation Rule management script
+├── sf_custom_settings.py      # Custom Setting checkbox management script
+├── disable_opportunity_apextriggers.py  # Utility script
+├── disable_opportunity_validations.py   # Utility script
 ├── test_sf_validations.py     # Unit tests for sf_validations.py
 ├── pytest.ini                 # Pytest configuration
 ├── README.md                  # This file

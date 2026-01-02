@@ -55,13 +55,81 @@ def persist_config(updates: Dict[str, str]):
     config = load_config()
     changed = False
     for key, value in updates.items():
-        if value and config.get(key) != value:
-            config[key] = value
+        if value and config.get(key) != value:            # Don't save production orgs as defaults
+            if 'org' in key:
+                try:
+                    sf_cli = SalesforceCLI(value)
+                    if not sf_cli.is_sandbox():
+                        console.print(f"[dim]Skipping save of production org '{value}' to config[/dim]")
+                        continue
+                except Exception:
+                    pass            config[key] = value
             changed = True
     if changed:
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_FILE, "w") as f:
             json.dump(config, f, indent=2)
+
+def check_triggers(target_org: str):
+    """
+    Query apex triggers and display active/inactive counts.
+    """
+    try:
+        sf_cli = SalesforceCLI(target_org=target_org)
+        if not sf_cli.is_sandbox():
+            console.print(f"[bold red]✗ SAFETY CHECK FAILED[/bold red]")
+            console.print(f"[red]The target org '{target_org}' is a PRODUCTION environment.[/red]")
+            console.print(f"[yellow]Trigger operations are only allowed on sandbox environments.[/yellow]")
+            raise RuntimeError(f"Cannot check triggers on production org '{target_org}'")
+    except RuntimeError as e:
+        if "SAFETY CHECK FAILED" in str(e) or "production org" in str(e):
+            raise
+        console.print(f"[yellow]⚠ Warning: Could not verify sandbox status: {e}[/yellow]")
+        console.print(f"[yellow]Proceeding with caution...[/yellow]")
+    
+    console.print(f"\n[bold cyan]🔍 Checking Apex Triggers[/bold cyan]")
+    console.print(f"[dim]Target Org: {target_org}[/dim]")
+    
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task(f"[cyan]Querying apex triggers...", total=None)
+            
+            # Query for deployable triggers only (exclude managed package triggers)
+            query = "SELECT Id, Name, Status, NamespacePrefix FROM ApexTrigger"
+            query_result = sf_cli._execute_sf_command(['data', 'query', '--query', query, '--use-tooling-api'])
+            
+            progress.update(task, completed=True)
+        
+        records = query_result.get('result', {}).get('records', [])
+        
+        # Filter out managed package triggers (those with a NamespacePrefix)
+        deployable_triggers = [r for r in records if not r.get('NamespacePrefix')]
+        managed_triggers = [r for r in records if r.get('NamespacePrefix')]
+        
+        active_count = sum(1 for record in deployable_triggers if record.get('Status') == 'Active')
+        inactive_count = sum(1 for record in deployable_triggers if record.get('Status') == 'Inactive')
+        managed_active = sum(1 for record in managed_triggers if record.get('Status') == 'Active')
+        
+        console.print(f"\n[bold cyan]Apex Triggers Summary[/bold cyan]")
+        table = Table(show_header=False, box=box.SIMPLE)
+        table.add_row("Active (Deployable)", f"[green]{active_count}[/green]")
+        table.add_row("Inactive (Deployable)", f"[dim]{inactive_count}[/dim]")
+        table.add_row("Total (Deployable)", f"[cyan]{len(deployable_triggers)}[/cyan]")
+        if managed_triggers:
+            table.add_row("[dim]Managed Package Triggers[/dim]", f"[yellow]{len(managed_triggers)}[/yellow]")
+            table.add_row("[dim]  - Active[/dim]", f"[dim]{managed_active}[/dim]")
+        console.print(table)
+        
+    except RuntimeError as e:
+        console.print(f"[bold red]✗ Error: {e}[/bold red]")
+        raise
+    except Exception as e:
+        console.print(f"[bold red]✗ Unexpected error: {e}[/bold red]")
+        raise
 
 def show_banner():
     """Display the application banner."""
@@ -376,6 +444,11 @@ def main():
         default="58.0",
         help="Salesforce API version (default: 58.0)"
     )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check and display active/inactive trigger counts"
+    )
     
     args = parser.parse_args()
     target_org = args.target_org or saved_target_org
@@ -388,6 +461,15 @@ def main():
         persist_config({"target_org": args.target_org})
 
     manager = TriggerManager(target_org, args.api_version)
+    
+    # Handle check mode
+    if args.check:
+        try:
+            check_triggers(target_org)
+            console.print()
+            sys.exit(0)
+        except Exception:
+            sys.exit(1)
     
     console.print(f"\n[cyan]Mode: [yellow]{'RESTORE' if args.enable else 'DISABLE'}[/yellow][/cyan] | Org: [magenta]{target_org}[/magenta]\n")
     

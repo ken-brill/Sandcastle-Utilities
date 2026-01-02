@@ -41,11 +41,19 @@ def persist_config(updates: dict):
     changed = False
     for key, value in updates.items():
         if value and config.get(key) != value:
+            # Don't save production orgs as defaults
+            if 'org' in key:
+                try:
+                    sf_cli = SalesforceCLI(value)
+                    if not sf_cli.is_sandbox():
+                        console.print(f"[dim]Skipping save of production org '{value}' to config[/dim]")
+                        continue
+                except Exception:
+                    pass
             config[key] = value
             changed = True
     if changed:
-        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_FILE, "w") as f:
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)\n        with open(CONFIG_FILE, "w") as f:
             json.dump(config, f, indent=2)
 
 def show_banner():
